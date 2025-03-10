@@ -55,7 +55,7 @@ impl App {
         for country_price in &self.vs_currencies {
             let country_text = Text::new(&country_price.country.name).size(20);
             let currency_text = Text::new(country_price.country.currency.to_uppercase()).size(20);
-            let price_test = Text::new(country_price.price).size(20);
+            let price_test = Text::new(format!("{:.2}", country_price.price)).size(20);
 
             let svg_data = self
                 .svg_map
@@ -71,10 +71,10 @@ impl App {
                 .height(50)
                 .spacing(10)
                 .align_y(Alignment::Center)
-                .push(svg_image)
-                .push(country_text)
-                .push(currency_text)
-                .push(price_test);
+                .push(svg_image.width(iced::Length::Fixed(40f32)))
+                .push(country_text.width(iced::Length::FillPortion(6)))
+                .push(currency_text.width(iced::Length::FillPortion(2)))
+                .push(price_test.width(iced::Length::FillPortion(4)));
 
             column = column.push(country_row);
         }
