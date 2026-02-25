@@ -1,6 +1,6 @@
 use crate::country::Country;
-use crate::pages::settings_page::Theme;
 use crate::route::Route;
+use iced::Theme;
 use std::collections::HashMap;
 
 /// Represents a country with its corresponding Bitcoin price
@@ -27,6 +27,8 @@ pub enum Message {
     Settings(SettingsMessage),
     /// Messages related to About page functionality
     About(AboutMessage),
+    /// Auto-refresh tick from subscription
+    Tick,
 }
 
 /// Messages specific to Bitcoin price fetching and display
@@ -45,19 +47,22 @@ pub enum BitcoinMessage {
 /// Messages specific to Settings page
 #[derive(Debug, Clone)]
 pub enum SettingsMessage {
-    /// Auto refresh interval changed
+    /// Auto refresh interval changed (in seconds)
     AutoRefreshIntervalChanged(u32),
-    /// Theme selection changed
+    /// Theme selection changed — uses iced's built-in Theme
     ThemeChanged(Theme),
     /// Notifications toggle changed
     NotificationsToggled(bool),
+    /// Auto-refresh toggle changed
+    AutoRefreshToggled(bool),
     /// Reset all settings to defaults
     ResetToDefaults,
 }
 
-/// Messages specific to About page (placeholder for future functionality)
+/// Messages specific to About page
 #[derive(Debug, Clone)]
 pub enum AboutMessage {
-    /// Placeholder message
-    Placeholder,
+    /// No-op placeholder (page is purely static)
+    #[allow(dead_code)]
+    OpenUrl(String),
 }

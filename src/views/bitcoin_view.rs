@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use iced::widget::{image, svg, Column, Container, Row, Scrollable, Text};
-use iced::{widget, Alignment, Length};
+use iced::{widget, Center, Fill, Length};
 
 use crate::message::{BitcoinMessage, CountryPrice};
 
@@ -11,17 +11,16 @@ const DEFAULT_SVG: &[u8] = br#"<svg width="40" height="30" xmlns="http://www.w3.
 /// View component for displaying Bitcoin prices
 pub struct BitcoinView<'a> {
     price_usd: f64,
-    vs_currencies: &'a Vec<CountryPrice>,
+    vs_currencies: &'a [CountryPrice],
     svg_map: &'a HashMap<String, Vec<u8>>,
     is_loading: bool,
     error_message: Option<&'a str>,
 }
 
 impl<'a> BitcoinView<'a> {
-    /// Creates a new Bitcoin view instance
     pub fn new(
         price_usd: f64,
-        vs_currencies: &'a Vec<CountryPrice>,
+        vs_currencies: &'a [CountryPrice],
         svg_map: &'a HashMap<String, Vec<u8>>,
         is_loading: bool,
         error_message: Option<&'a str>,
@@ -35,28 +34,26 @@ impl<'a> BitcoinView<'a> {
         }
     }
 
-    /// Renders the Bitcoin view
     pub fn view(self) -> iced::Element<'a, BitcoinMessage> {
         let header = self.build_header();
         let controls = self.build_controls();
         let content = self.build_content();
 
         widget::column![header, controls, content]
-            .width(Length::Fill)
+            .width(Fill)
             .spacing(15)
             .padding([10, 50])
-            .align_x(Alignment::Center)
+            .align_x(Center)
             .into()
     }
 
-    /// Builds the header with Bitcoin logo and USD price
     fn build_header(&self) -> iced::Element<'a, BitcoinMessage> {
         let img = image("resources/Bitcoin.png");
         let img_content = Container::new(img)
             .width(Length::Shrink)
             .height(Length::Shrink);
 
-        let usd_price = if self.is_loading {
+        let usd_price = if self.is_loading && self.price_usd == 0.0 {
             Text::new("Loading...").size(24)
         } else {
             Text::new(format!("USD: ${:.2}", self.price_usd)).size(24)
@@ -64,28 +61,24 @@ impl<'a> BitcoinView<'a> {
 
         widget::column![img_content, usd_price]
             .spacing(10)
-            .align_x(Alignment::Center)
+            .align_x(Center)
             .into()
     }
 
-    /// Builds the control buttons
     fn build_controls(&self) -> iced::Element<'a, BitcoinMessage> {
-        let fetch_button = widget::button("Fetch Current Price")
-            .on_press(BitcoinMessage::Refetch);
-
         let fetch_button = if self.is_loading {
-            widget::button("Loading...")
+            widget::button("Loading...").style(widget::button::secondary)
         } else {
-            fetch_button
+            widget::button("Fetch Current Price")
+                .style(widget::button::primary)
+                .on_press(BitcoinMessage::Refetch)
         };
 
         Container::new(fetch_button)
-            .width(Length::Fill)
-            .center_x(Length::Fill)
+            .center_x(Fill)
             .into()
     }
 
-    /// Builds the main content area with currency list or error message
     fn build_content(&self) -> iced::Element<'a, BitcoinMessage> {
         if let Some(error) = self.error_message {
             return Container::new(
@@ -93,53 +86,45 @@ impl<'a> BitcoinView<'a> {
                     .size(16)
                     .color([1.0, 0.0, 0.0]),
             )
-            .width(Length::Fill)
-            .center_x(Length::Fill)
+            .center_x(Fill)
             .into();
         }
 
-        if self.is_loading {
+        if self.is_loading && self.vs_currencies.is_empty() {
             return Container::new(Text::new("Loading prices...").size(16))
-                .width(Length::Fill)
-                .center_x(Length::Fill)
+                .center_x(Fill)
                 .into();
         }
 
         self.build_currency_list()
     }
 
-    /// Builds the scrollable list of currencies and their prices
     fn build_currency_list(&self) -> iced::Element<'a, BitcoinMessage> {
         let mut column = Column::new().padding(10);
 
-        // Add header row
+        // Header row
         let header_row = Row::new()
             .height(40)
             .spacing(10)
-            .align_y(Alignment::Center)
+            .align_y(Center)
             .push(Text::new("Flag").width(Length::Fixed(40.0)).size(14))
             .push(Text::new("Country").width(Length::FillPortion(6)).size(14))
             .push(Text::new("Currency").width(Length::FillPortion(2)).size(14))
             .push(Text::new("Price").width(Length::FillPortion(4)).size(14));
 
         column = column.push(header_row);
+        column = column.push(widget::rule::horizontal(1));
 
-        // Add separator
-        column = column.push(widget::horizontal_rule(1));
-
-        // Add currency rows
         for country_price in self.vs_currencies {
-            let country_row = self.build_currency_row(country_price);
-            column = column.push(country_row);
+            column = column.push(self.build_currency_row(country_price));
         }
 
         Scrollable::new(column)
-            .height(Length::Fill)
-            .width(Length::Fill)
+            .height(Fill)
+            .width(Fill)
             .into()
     }
 
-    /// Builds a single currency row
     fn build_currency_row(&self, country_price: &'a CountryPrice) -> Row<'a, BitcoinMessage> {
         let country_text = Text::new(&country_price.country.name).size(16);
         let currency_text = Text::new(country_price.country.currency.to_uppercase()).size(16);
@@ -157,7 +142,7 @@ impl<'a> BitcoinView<'a> {
         Row::new()
             .height(50)
             .spacing(10)
-            .align_y(Alignment::Center)
+            .align_y(Center)
             .push(svg_image.width(Length::Fixed(40.0)))
             .push(country_text.width(Length::FillPortion(6)))
             .push(currency_text.width(Length::FillPortion(2)))

@@ -1,6 +1,8 @@
-use iced::{widget, Task, Theme};
+use std::time::Duration;
 
-use crate::message::Message;
+use iced::{widget, Subscription, Task, Theme};
+
+use crate::message::{BitcoinMessage, Message};
 use crate::pages::{about_page::AboutPage, bitcoin_page::BitcoinPage, settings_page::SettingsPage};
 use crate::route::Route;
 use crate::views::navigation::Navigation;
@@ -11,34 +13,21 @@ pub struct App {
     current_route: Route,
     /// Bitcoin page state
     bitcoin_page: BitcoinPage,
-    /// Settings page state
+    /// Settings page state — owns config that affects the whole app
     settings_page: SettingsPage,
     /// About page state
     about_page: AboutPage,
 }
 
-impl Default for App {
-    fn default() -> Self {
-        let (bitcoin_page, _) = BitcoinPage::new();
-        let (settings_page, _) = SettingsPage::new();
-        let (about_page, _) = AboutPage::new();
-        
-        Self {
-            current_route: Route::default(),
-            bitcoin_page,
-            settings_page,
-            about_page,
-        }
-    }
-}
-
 impl App {
-    /// Creates a new instance of the application
-    pub fn new() -> (Self, Task<Message>) {
+    // ── Lifecycle ────────────────────────────────────────────────
+
+    /// Boot function called once at startup (iced 0.14 `BootFn`)
+    pub fn boot() -> (Self, Task<Message>) {
         let (bitcoin_page, bitcoin_task) = BitcoinPage::new();
-        let (settings_page, settings_task) = SettingsPage::new();
-        let (about_page, about_task) = AboutPage::new();
-        
+        let settings_page = SettingsPage::new();
+        let about_page = AboutPage::new();
+
         (
             Self {
                 current_route: Route::default(),
@@ -46,43 +35,65 @@ impl App {
                 settings_page,
                 about_page,
             },
-            Task::batch([
-                bitcoin_task.map(Message::Bitcoin),
-                settings_task.map(Message::Settings),
-                about_task.map(Message::About),
-            ]),
+            bitcoin_task.map(Message::Bitcoin),
         )
     }
 
-    /// Handles application-level messages and delegates to appropriate handlers
+    /// Dynamic window title based on current page
+    pub fn title(&self) -> String {
+        format!("Bitcoin Price Monitor — {}", self.current_route.display_name())
+    }
+
+    /// Theme is driven by the Settings page selection
+    pub fn theme(&self) -> Theme {
+        self.settings_page.selected_theme().clone()
+    }
+
+    /// Subscription: auto-refresh BTC prices at the configured interval
+    pub fn subscription(&self) -> Subscription<Message> {
+        if self.settings_page.auto_refresh_enabled() {
+            let secs = self.settings_page.auto_refresh_interval();
+            iced::time::every(Duration::from_secs(secs as u64)).map(|_| Message::Tick)
+        } else {
+            Subscription::none()
+        }
+    }
+
+    // ── Update ──────────────────────────────────────────────────
+
+    /// Handles application-level messages and delegates to appropriate page
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Navigate(route) => {
                 self.current_route = route;
                 Task::none()
             }
-            Message::Bitcoin(bitcoin_msg) => {
+            Message::Bitcoin(msg) => {
+                self.bitcoin_page.update(msg).map(Message::Bitcoin)
+            }
+            Message::Settings(msg) => {
+                self.settings_page.update(msg);
+                Task::none()
+            }
+            Message::About(msg) => {
+                self.about_page.update(msg);
+                Task::none()
+            }
+            Message::Tick => {
+                // Auto-refresh triggers a Bitcoin price refetch
                 self.bitcoin_page
-                    .update(bitcoin_msg)
+                    .update(BitcoinMessage::Refetch)
                     .map(Message::Bitcoin)
-            }
-            Message::Settings(settings_msg) => {
-                self.settings_page
-                    .update(settings_msg)
-                    .map(Message::Settings)
-            }
-            Message::About(about_msg) => {
-                self.about_page
-                    .update(about_msg)
-                    .map(Message::About)
             }
         }
     }
 
+    // ── View ────────────────────────────────────────────────────
+
     /// Renders the application view
     pub fn view(&self) -> iced::Element<'_, Message> {
-        let navigation = Navigation::new(self.current_route.clone()).view();
-        
+        let navigation = Navigation::new(&self.current_route).view();
+
         let content = match &self.current_route {
             Route::Bitcoin => self.bitcoin_page.view().map(Message::Bitcoin),
             Route::Settings => self.settings_page.view().map(Message::Settings),
@@ -90,11 +101,5 @@ impl App {
         };
 
         widget::column![navigation, content].into()
-    }
-
-    /// Returns the application theme
-    pub fn theme(&self) -> Theme {
-        // In the future, this could be dynamic based on settings
-        Theme::Nord
     }
 }
