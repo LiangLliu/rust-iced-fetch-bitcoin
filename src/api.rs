@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{debug, error, info, warn};
 
+use crate::http_client::CLIENT;
+
 /// Response structure from CoinGecko API
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CoinGeckoResponse {
@@ -9,27 +11,18 @@ pub struct CoinGeckoResponse {
 }
 
 /// API-related errors
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ApiError {
     /// Network request failed
-    NetworkError(reqwest::Error),
+    #[error("Network error: {0}")]
+    NetworkError(#[from] reqwest::Error),
     /// Failed to parse JSON response
+    #[error("Failed to parse response: {0}")]
     ParseError(String),
     /// Invalid response format
+    #[error("Invalid response: {0}")]
     InvalidResponse(String),
 }
-
-impl std::fmt::Display for ApiError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ApiError::NetworkError(err) => write!(f, "Network error: {}", err),
-            ApiError::ParseError(msg) => write!(f, "Failed to parse response: {}", msg),
-            ApiError::InvalidResponse(msg) => write!(f, "Invalid response: {}", msg),
-        }
-    }
-}
-
-impl std::error::Error for ApiError {}
 
 /// Fetches Bitcoin prices in the specified currencies
 ///
@@ -48,17 +41,8 @@ pub async fn fetch_btc(currencies: Vec<String>) -> Result<(f64, CoinGeckoRespons
 
     info!("Fetching BTC prices from: {}", url);
 
-    // Build a client with a proper User-Agent (required by CoinGecko)
-    let client = reqwest::Client::builder()
-        .user_agent("iced-fetch-bitcoin/0.2.0")
-        .build()
-        .map_err(|e| {
-            error!("Failed to build HTTP client: {e}");
-            ApiError::NetworkError(e)
-        })?;
-
-    // Step 1: Send HTTP request
-    let http_response = client
+    // Step 1: Send HTTP request (using shared client with connection pooling)
+    let http_response = CLIENT
         .get(&url)
         .send()
         .await
@@ -105,4 +89,40 @@ pub async fn fetch_btc(currencies: Vec<String>) -> Result<(f64, CoinGeckoRespons
 
     info!("BTC/USD = {usd:.2}");
     Ok((usd, response))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_valid_response() {
+        let json = r#"{"bitcoin":{"usd":65497.0,"eur":60123.0,"gbp":51234.0}}"#;
+        let response: CoinGeckoResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(response.bitcoin["usd"], 65497.0);
+        assert_eq!(response.bitcoin["eur"], 60123.0);
+        assert_eq!(response.bitcoin.len(), 3);
+    }
+
+    #[test]
+    fn parse_empty_bitcoin_map() {
+        let json = r#"{"bitcoin":{}}"#;
+        let response: CoinGeckoResponse = serde_json::from_str(json).unwrap();
+        assert!(response.bitcoin.is_empty());
+    }
+
+    #[test]
+    fn parse_invalid_json_fails() {
+        let result: Result<CoinGeckoResponse, _> = serde_json::from_str("not json");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn api_error_display() {
+        let err = ApiError::ParseError("bad json".into());
+        assert_eq!(err.to_string(), "Failed to parse response: bad json");
+
+        let err = ApiError::InvalidResponse("HTTP 403".into());
+        assert_eq!(err.to_string(), "Invalid response: HTTP 403");
+    }
 }

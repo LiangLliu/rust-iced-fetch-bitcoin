@@ -1,7 +1,7 @@
-use crate::message::AboutMessage;
+use crate::message::Message;
 use crate::views::about_view::AboutView;
 
-/// About page showing application information
+/// About page — purely informational, no interactive state
 #[derive(Default)]
 pub struct AboutPage;
 
@@ -10,11 +10,7 @@ impl AboutPage {
         Self
     }
 
-    pub fn update(&mut self, _message: AboutMessage) {
-        // No state to update
-    }
-
-    pub fn view(&self) -> iced::Element<'_, AboutMessage> {
+    pub fn view(&self) -> iced::Element<'_, Message> {
         AboutView::new().view()
     }
 }

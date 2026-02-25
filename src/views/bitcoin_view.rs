@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use iced::widget::{image, svg, Column, Container, Row, Scrollable, Text};
 use iced::{widget, Center, Fill, Length};
 
-use crate::message::{BitcoinMessage, CountryPrice};
+use crate::country::CountryPrice;
+use crate::message::BitcoinMessage;
 
 /// Default SVG content for missing flag images
 const DEFAULT_SVG: &[u8] = br#"<svg width="40" height="30" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="gray"/></svg>"#;
@@ -12,7 +13,7 @@ const DEFAULT_SVG: &[u8] = br#"<svg width="40" height="30" xmlns="http://www.w3.
 pub struct BitcoinView<'a> {
     price_usd: f64,
     vs_currencies: &'a [CountryPrice],
-    svg_map: &'a HashMap<String, Vec<u8>>,
+    svg_map: &'a HashMap<String, svg::Handle>,
     is_loading: bool,
     error_message: Option<&'a str>,
 }
@@ -21,7 +22,7 @@ impl<'a> BitcoinView<'a> {
     pub fn new(
         price_usd: f64,
         vs_currencies: &'a [CountryPrice],
-        svg_map: &'a HashMap<String, Vec<u8>>,
+        svg_map: &'a HashMap<String, svg::Handle>,
         is_loading: bool,
         error_message: Option<&'a str>,
     ) -> Self {
@@ -126,17 +127,15 @@ impl<'a> BitcoinView<'a> {
     }
 
     fn build_currency_row(&self, country_price: &'a CountryPrice) -> Row<'a, BitcoinMessage> {
-        let country_text = Text::new(&country_price.country.name).size(16);
+        let country_text = Text::new(country_price.country.name).size(16);
         let currency_text = Text::new(country_price.country.currency.to_uppercase()).size(16);
         let price_text = Text::new(format!("{:.2}", country_price.price)).size(16);
 
-        let svg_data = self
+        let handle = self
             .svg_map
-            .get(&country_price.country.code)
+            .get(country_price.country.country_code)
             .cloned()
-            .unwrap_or_else(|| DEFAULT_SVG.to_vec());
-
-        let handle = svg::Handle::from_memory(svg_data);
+            .unwrap_or_else(|| svg::Handle::from_memory(DEFAULT_SVG.to_vec()));
         let svg_image = svg(handle).width(40).height(30);
 
         Row::new()

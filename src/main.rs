@@ -1,3 +1,7 @@
+// Hide the console window on Windows in release builds.
+// On macOS/Linux this attribute is harmless (ignored).
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use iced::window;
 use iced::Size;
 use tracing_subscriber::EnvFilter;
@@ -6,6 +10,7 @@ use tracing_subscriber::EnvFilter;
 mod api;
 mod app;
 mod country;
+mod http_client;
 mod http_utils;
 mod message;
 mod route;
@@ -20,12 +25,18 @@ const WINDOW_ICON: &[u8] = include_bytes!("../resources/Bitcoin.png");
 
 /// Main application entry point
 fn main() -> iced::Result {
-    // Initialize logging: default INFO, override with RUST_LOG env var
-    // e.g. RUST_LOG=debug cargo run
+    // Initialize logging: respect RUST_LOG env var if set,
+    // otherwise debug builds default to DEBUG, release builds to INFO.
+    let default_filter = if cfg!(debug_assertions) {
+        "iced_fetch_bitcoin=debug,warn"
+    } else {
+        "iced_fetch_bitcoin=info,warn"
+    };
+
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("iced_fetch_bitcoin=debug,warn")),
+                .unwrap_or_else(|_| EnvFilter::new(default_filter)),
         )
         .init();
 

@@ -1,20 +1,7 @@
-use crate::country::Country;
+use crate::country::CountryPrice;
 use crate::route::Route;
 use iced::Theme;
 use std::collections::HashMap;
-
-/// Represents a country with its corresponding Bitcoin price
-#[derive(Debug, Clone)]
-pub struct CountryPrice {
-    pub country: Country,
-    pub price: f64,
-}
-
-impl CountryPrice {
-    pub fn new(country: Country, price: f64) -> Self {
-        Self { country, price }
-    }
-}
 
 /// Application-level messages
 #[derive(Debug, Clone)]
@@ -25,8 +12,6 @@ pub enum Message {
     Bitcoin(BitcoinMessage),
     /// Messages related to Settings page functionality
     Settings(SettingsMessage),
-    /// Messages related to About page functionality
-    About(AboutMessage),
     /// Auto-refresh tick from subscription
     Tick,
 }
@@ -57,12 +42,4 @@ pub enum SettingsMessage {
     AutoRefreshToggled(bool),
     /// Reset all settings to defaults
     ResetToDefaults,
-}
-
-/// Messages specific to About page
-#[derive(Debug, Clone)]
-pub enum AboutMessage {
-    /// No-op placeholder (page is purely static)
-    #[allow(dead_code)]
-    OpenUrl(String),
 }

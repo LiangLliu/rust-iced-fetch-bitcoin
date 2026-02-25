@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
+use iced::widget::svg;
 use iced::Task;
 
 use crate::api;
-use crate::country::get_countries;
+use crate::country::{get_countries, Country, CountryPrice};
 use crate::http_utils::download_svgs_to_memory;
-use crate::message::{BitcoinMessage, CountryPrice};
+use crate::message::BitcoinMessage;
 use crate::views::bitcoin_view::BitcoinView;
 
 /// State for the Bitcoin price page
@@ -14,8 +15,8 @@ pub struct BitcoinPage {
     price_usd: f64,
     /// Bitcoin prices in various currencies with country information
     vs_currencies: Vec<CountryPrice>,
-    /// SVG flag data for countries
-    svg_map: HashMap<String, Vec<u8>>,
+    /// Pre-built SVG flag handles (clone is O(1))
+    svg_map: HashMap<String, svg::Handle>,
     /// Loading state indicator
     is_loading: bool,
     /// Error message if any operation fails
@@ -27,9 +28,9 @@ impl BitcoinPage {
     pub fn new() -> (Self, Task<BitcoinMessage>) {
         let countries = get_countries();
 
-        let codes: Vec<String> = countries.iter().map(|c| c.code.clone()).collect();
-        let flags: Vec<String> = countries.iter().map(|c| c.flag.clone()).collect();
-        let currencies: Vec<String> = countries.iter().map(|c| c.currency.clone()).collect();
+        let codes: Vec<String> = countries.iter().map(|c| c.country_code.to_string()).collect();
+        let flags: Vec<String> = countries.iter().map(|c| c.flag_url.clone()).collect();
+        let currencies: Vec<String> = countries.iter().map(|c| c.currency.to_string()).collect();
 
         let svg_task = Task::perform(
             download_svgs_to_memory(codes, flags),
@@ -62,7 +63,7 @@ impl BitcoinPage {
 
                 let countries = get_countries();
                 let currencies: Vec<String> =
-                    countries.iter().map(|c| c.currency.clone()).collect();
+                    countries.iter().map(|c| c.currency.to_string()).collect();
 
                 Task::perform(Self::fetch_prices(countries, currencies), |r| r)
             }
@@ -73,8 +74,11 @@ impl BitcoinPage {
                 self.error_message = None;
                 Task::none()
             }
-            BitcoinMessage::SvgLoaded(svg_map) => {
-                self.svg_map = svg_map;
+            BitcoinMessage::SvgLoaded(raw_svg_map) => {
+                self.svg_map = raw_svg_map
+                    .into_iter()
+                    .map(|(code, data)| (code, svg::Handle::from_memory(data)))
+                    .collect();
                 // Keep loading true if prices haven't arrived yet
                 if self.price_usd > 0.0 {
                     self.is_loading = false;
@@ -104,7 +108,7 @@ impl BitcoinPage {
     // ── Private helpers ─────────────────────────────────────────
 
     async fn fetch_prices(
-        countries: Vec<crate::country::Country>,
+        countries: &'static [Country],
         currencies: Vec<String>,
     ) -> BitcoinMessage {
         match api::fetch_btc(currencies).await {
@@ -114,7 +118,7 @@ impl BitcoinPage {
                     .map(|c| {
                         let price = response
                             .bitcoin
-                            .get(&c.currency)
+                            .get(c.currency)
                             .copied()
                             .unwrap_or(0.0);
                         CountryPrice::new(c.clone(), price)

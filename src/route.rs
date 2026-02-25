@@ -26,7 +26,7 @@ impl Route {
     }
 
     /// Get all available routes
-    pub fn all() -> Vec<Route> {
-        vec![Route::Bitcoin, Route::Settings, Route::About]
+    pub fn all() -> [Route; 3] {
+        [Route::Bitcoin, Route::Settings, Route::About]
     }
 }

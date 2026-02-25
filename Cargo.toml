@@ -1,14 +1,21 @@
 [package]
 name = "iced-fetch-bitcoin"
-version = "0.2.0"
+version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 iced = { version = "0.14.0", features = ["tokio", "image", "svg", "advanced"] }
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.13.2", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 futures = "0.3"
 tokio = { version = "1", features = ["fs"] }
+thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+strip = true      # 去除符号表
+lto = true         # 链接时优化，消除未使用代码
+codegen-units = 1  # 单编译单元，最大优化
+opt-level = "z"    # 优先最小体积

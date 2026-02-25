@@ -1,7 +1,7 @@
 use iced::widget::{column, container, space, text};
 use iced::{Center, Fill};
 
-use crate::message::AboutMessage;
+use crate::message::Message;
 
 /// About view component
 pub struct AboutView;
@@ -11,11 +11,11 @@ impl AboutView {
         Self
     }
 
-    pub fn view(self) -> iced::Element<'static, AboutMessage> {
+    pub fn view(self) -> iced::Element<'static, Message> {
         let title = text("About Bitcoin Price Monitor").size(32);
 
         let version_info = column![
-            text("Version: 0.2.0").size(16),
+            text(format!("Version: {}", env!("CARGO_PKG_VERSION"))).size(16),
             text("Built with Iced 0.14").size(14),
             text("Rust Edition 2021").size(14),
         ]

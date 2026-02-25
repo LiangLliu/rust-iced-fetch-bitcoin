@@ -75,10 +75,6 @@ impl App {
                 self.settings_page.update(msg);
                 Task::none()
             }
-            Message::About(msg) => {
-                self.about_page.update(msg);
-                Task::none()
-            }
             Message::Tick => {
                 // Auto-refresh triggers a Bitcoin price refetch
                 self.bitcoin_page
@@ -97,7 +93,7 @@ impl App {
         let content = match &self.current_route {
             Route::Bitcoin => self.bitcoin_page.view().map(Message::Bitcoin),
             Route::Settings => self.settings_page.view().map(Message::Settings),
-            Route::About => self.about_page.view().map(Message::About),
+            Route::About => self.about_page.view(),
         };
 
         widget::column![navigation, content].into()

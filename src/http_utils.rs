@@ -1,6 +1,8 @@
 use futures::stream::{FuturesUnordered, StreamExt};
 use std::collections::HashMap;
 
+use crate::http_client::CLIENT;
+
 /// Downloads multiple SVG flag images concurrently and returns them as in-memory byte vectors.
 ///
 /// # Arguments
@@ -10,10 +12,7 @@ pub async fn download_svgs_to_memory(
     codes: Vec<String>,
     flags: Vec<String>,
 ) -> HashMap<String, Vec<u8>> {
-    let client = reqwest::Client::builder()
-        .user_agent("iced-fetch-bitcoin/0.2.0")
-        .build()
-        .unwrap_or_default();
+    let client = CLIENT.clone();
     let mut tasks = FuturesUnordered::new();
 
     for (code, flag) in codes.into_iter().zip(flags.into_iter()) {
